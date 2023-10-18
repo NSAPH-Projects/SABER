@@ -1,10 +1,12 @@
 # Source helper functions from simulation functions
-source("~/GPCERF_spatial/GPCERF_spatial/cork_simulations/simulation_functions.R", echo=TRUE)
+library(tidyverse)
+source("~/nsaph_projects/SABER/simulation_scripts/simulation_functions.R", echo=TRUE)
 
 # Now run the model simulations
 model_tag <- "increase_nngp"
-results_dir <- paste0("~/GPCERF_spatial/GPCERF_spatial/cork_data/", model_tag, "/")
-#dir.create(results_dir)
+results_dir <- paste0("~/nsaph_projects/SABER/model_runs/", model_tag, "/")
+plot_dir <- paste0(results_dir, "/plots/")
+dir.create(plot_dir)
 
 # Create correlation table 
 results <- readRDS(paste0(results_dir, "results_finished.RDS"))
@@ -20,7 +22,8 @@ correlation_summary <-
   ungroup()
 
 # Now plot the correlation plot 
-ggplot(correlation_summary, aes(x = covariate, y = mean, ymin = lower, ymax = upper, color = type, group = type)) +
+gg_correlation <- 
+  ggplot(correlation_summary, aes(x = covariate, y = mean, ymin = lower, ymax = upper, color = type, group = type)) +
   geom_hline(aes(yintercept = 0.1), alpha = 0.5, color = "black", linetype = "dashed") + 
   geom_errorbar(width = 0.5, position = position_dodge(width = 0.7)) +
   geom_point(position = position_dodge(width = 0.7)) + 
@@ -31,6 +34,8 @@ ggplot(correlation_summary, aes(x = covariate, y = mean, ymin = lower, ymax = up
   coord_flip() + 
   facet_wrap(~ method) + 
   labs(y = "Absolute correlation", x = "Covariate")
+
+ggsave(paste0(plot_dir, "correlation.pdf"), gg_correlation, width = 8, height = 8)
 
 # Now work on metrics -----------------------------------------
 metrics <- map_dfr(1:50, function(i){
@@ -45,7 +50,7 @@ metrics %>%
             upper_mse = quantile(mse, 0.95)) %>% 
   ggplot(aes(x = model, y = mean_mse, ymin = lower_mse, ymax = upper_mse)) + 
   geom_point() + 
-  coord_cartesian(ylim = c(0, 45)) + 
+  coord_cartesian(ylim = c(0, 100)) + 
   geom_errorbar(width = 0.5) + 
   theme_bw() + 
   labs(y = "MSE")
@@ -113,6 +118,7 @@ gg_erf <-
 
 gg_erf
 
+ggsave(paste0(plot_dir, "erf_transparent.pdf"), gg_erf, width = 10, height = 8)
 
 # Now read in results after you have fit the model ------------------------------------------
 # Define common grid to work over
@@ -165,6 +171,7 @@ gg_erf_hidden <-
   facet_wrap(~ model)
 
 gg_erf_hidden
+ggsave(paste0(plot_dir, "erf_hidden.pdf"), gg_erf_hidden, width = 10, height = 8)
 
 # Now work on metrics -----------------------------------------
 metrics_hidden <- map_dfr(1:50, function(i){
@@ -221,6 +228,8 @@ gg_bias_compare <-
 
 gg_bias_compare
 
+ggsave(paste0(plot_dir, "bias_compare.pdf"), gg_bias_compare, width = 8, height = 8)
+
 gg_mse_compare <- 
   rbind(metrics %>% mutate(setting = "transparent"),
         metrics_hidden %>% mutate(setting = "hidden")) %>%
@@ -233,12 +242,13 @@ gg_mse_compare <-
   ggplot(aes(x = model, y = mean_mse, ymin = lower_mse, ymax = upper_mse, color = setting)) + 
   geom_point(position = position_dodge(width = 0.5)) + 
   geom_errorbar(width = 0.5, position = position_dodge(width = 0.5)) + 
-  coord_cartesian(ylim = c(0, 150)) + 
+  coord_cartesian(ylim = c(0, 50)) + 
   theme_bw() + 
   labs(y = "MSE") +
   scale_color_manual(values = c("transparent" = "deepskyblue", "hidden" = "darkorange4"))
 
 gg_mse_compare
+ggsave(paste0(plot_dir, "bias_compare.pdf"), gg_mse_compare, width = 8, height = 8)
 
 
 

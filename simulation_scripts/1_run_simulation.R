@@ -2,14 +2,15 @@
 library("GPCERF", lib.loc = "/n/home_fasse/mcork/R/ifxrstudio/RELEASE_3_16")
 
 # Source helper functions from simulation functions
-source("~/GPCERF_spatial/GPCERF_spatial/cork_simulations/simulation_functions.R", echo=TRUE)
+source("~/nsaph_projects/SABER/simulation_scripts/simulation_functions.R")
 
 set.seed(23)
 
 # Main function for simulation
 simulate_models <- function(n = 1000, sigma = 5, n_core = 12, 
-                            exp_relationship = "linear", spatial_hidden = F) {
-  dat <- simulate_data(n, sigma, exp_relationship = exp_relationship)
+                            exp_relationship = "linear", spatial_hidden = F,
+                            interaction = T) {
+  dat <- simulate_data(n, sigma, exp_relationship = exp_relationship, interaction = interaction)
   model_fits <- fit_models(dat, n_core = n_core, 
                            spatial_hidden, w_values = seq(0, 10, length.out = 100))
   metrics <- calculate_metrics(dat, lm_fit = model_fits$lm_fit, 
@@ -17,7 +18,8 @@ simulate_models <- function(n = 1000, sigma = 5, n_core = 12,
                                lm_ent_weights = model_fits$lm_ent_weights, 
                                gam_ent_weights = model_fits$gam_ent_weights,
                                gpcerf = model_fits$gpcerf,
-                               w_values = seq(0, 10, length.out = 100))
+                               w_values = seq(0, 10, length.out = 100),
+                               interaction = interaction)
   
   return(list(
     metrics = metrics$data_metrics,
@@ -27,39 +29,41 @@ simulate_models <- function(n = 1000, sigma = 5, n_core = 12,
   ))
 }
 
-time_taken <- system.time({
-  sim_result <- simulate_models(n = 100, sigma = 10, n_core = 1, spatial_hidden = F)
-})
-
-print(time_taken)
+# time_taken <- system.time({
+#   sim_result <- simulate_models(n = 500, sigma = 10, n_core = 1, 
+#                                 spatial_hidden = F, interaction = F)
+# })
+ 
+# print(time_taken)
 
 # # # # This is for testing it out before running 100 simulations
-sim_result <- simulate_models(n = 200, sigma = 10, n_core = 1, spatial_hidden = F)
+# sim_result <- simulate_models(n = 200, sigma = 10, n_core = 1, spatial_hidden = F)
 # sim_result2 <- simulate_models(n = 1000, sigma = 5, n_core = 12, spatial_hidden = T)
  
-model_types <- c("linear_model", "gam_model", "linear_ent", "gam_ent", "gpcerf")
+# model_types <- c("linear_model", "gam_model", "linear_ent", "gam_ent", "gpcerf")
+# 
+# # # plot all data together, centering at w = 5
+# sim_result$data_prediction %>%
+#   pivot_longer(c(all_of(model_types), "true_relationship"), names_to = "model", values_to = "prediction") %>%
+#   arrange(w) %>%
+#   ggplot() +
+#   geom_line(aes(x = w, y = prediction, color = model)) +
+#   labs(x = "PM2.5", y = "Mortality")
 
-# # plot all data together, centering at w = 5
-sim_result$data_prediction %>%
-  pivot_longer(c(all_of(model_types), "true_relationship"), names_to = "model", values_to = "prediction") %>%
-  arrange(w) %>%
-  ggplot() +
-  geom_line(aes(x = w, y = prediction, color = model)) +
-  labs(x = "PM2.5", y = "Mortality")
-   
 # sim_result2$metrics %>% 
 #   group_by(model) %>% 
 #   summarize(mse = mean(mse))
 
 # Now run the model simulations
-model_tag <- "increase_nngp"
-results_dir <- paste0("~/GPCERF_spatial/GPCERF_spatial/cork_data/", model_tag, "/")
+model_tag <- "no_interaction"
+results_dir <- paste0("~/nsaph_projects/SABER/model_runs/", model_tag, "/")
 dir.create(results_dir)
 
 # Run over several times to get through simulation
 results <- lapply(1:50, function(x) {
-  sim_result <- simulate_models(n = 1000, sigma = 10, n_core = 10, 
-                                exp_relationship = "linear", spatial_hidden = F)
+  sim_result <- simulate_models(n = 1000, sigma = 10, n_core = 1, 
+                                exp_relationship = "linear", spatial_hidden = F,
+                                interaction = F)
   print(paste("Finished simulation", x))
   # Save for now so if it fails you can still recover
   saveRDS(sim_result, paste0(results_dir, "results_", x, ".RDS"))
@@ -70,7 +74,9 @@ saveRDS(results, paste0(results_dir, "results_finished.RDS"))
 
 # run with hiding the spatial covariate
 results_hidden <- lapply(1:50, function(x) {
-  sim_result <- simulate_models(n = 1000, sigma = 1, n_core = 10, spatial_hidden = T)
+  sim_result <- simulate_models(n = 1000, sigma = 10, n_core = 1, 
+                                exp_relationship = "linear", spatial_hidden = T,
+                                interaction = F)
   print(paste("Finished hidden simulation", x))
   # Save for now so if it fails you can still recover
   saveRDS(sim_result, paste0(results_dir, "results_hidden_", x, ".RDS"))
